@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מדריך SolidWorks שלב אחר שלב</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#16202c;--mute:#5b6b7e;--line:#dde3ea;--acc:#c8102e;--acc2:#1f4e8c;--ok:#1a7f4b;--soft:#eef3fa}
+@media (prefers-color-scheme:dark){:root{--bg:#0f141a;--card:#18202a;--ink:#e8eef5;--mute:#93a3b5;--line:#2a3542;--soft:#1d2834;--acc2:#6aa0e6}}
+*{box-sizing:border-box}
+body{margin:0;font-family:Heebo,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
+.wrap{max-width:760px;margin:0 auto;padding:18px 16px 60px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.logo{width:44px;height:44px;border-radius:10px;background:var(--acc);display:grid;place-items:center;flex:none}
+h1{font-size:1.35rem;margin:0;font-weight:800}
+.sub{color:var(--mute);font-size:.9rem;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+label{font-weight:700;font-size:.92rem;display:block;margin-bottom:6px}
+textarea{width:100%;min-height:84px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;background:var(--bg);color:var(--ink);resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.chip{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:.86rem;cursor:pointer}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:end}
+.row>div{flex:1;min-width:140px}
+select{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px;font:inherit;background:var(--bg);color:var(--ink)}
+.btn{border:0;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer;background:var(--acc);color:#fff}
+.btn.sec{background:var(--soft);color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.loading{display:flex;align-items:center;gap:10px;color:var(--mute)}
+.spin{width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.err{color:var(--acc);font-weight:500}
+.ov h2{margin:0 0 4px;font-size:1.25rem}
+.specs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+.spec{background:var(--soft);border-radius:8px;padding:8px 10px;font-size:.88rem}
+.spec b{display:block;color:var(--mute);font-weight:500;font-size:.78rem}
+.prog{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:6px 0 2px}
+.prog i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+.stepnav{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px}
+.dot{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+.dot.cur{border-color:var(--acc);color:var(--acc)}
+.dot.done{background:var(--ok);border-color:var(--ok);color:#fff}
+.phase{display:inline-block;font-size:.78rem;font-weight:700;color:var(--acc2);background:var(--soft);padding:2px 10px;border-radius:99px}
+.step h3{margin:6px 0 2px;font-size:1.15rem}
+.path{direction:ltr;text-align:left;font-family:ui-monospace,Menlo,monospace;font-size:.84rem;background:var(--soft);border-radius:8px;padding:8px 10px;margin:10px 0;overflow-x:auto;white-space:nowrap}
+ol.act{padding-inline-start:22px;margin:8px 0}
+ol.act li{margin-bottom:6px}
+.box{border-radius:10px;padding:10px 12px;margin-top:10px;font-size:.92rem}
+.tip{background:#fff6dd;color:#5a4300}
+.chk{background:#e5f5ec;color:#11502f}
+@media (prefers-color-scheme:dark){.tip{background:#3a3110;color:#f4dc8c}.chk{background:#123323;color:#9fe0bb}}
+.nav{display:flex;gap:10px;justify-content:space-between;margin-top:14px}
+.ask{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+.ask input{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font:inherit;background:var(--bg);color:var(--ink)}
+.ans{margin-top:8px;white-space:pre-wrap;font-size:.92rem;background:var(--soft);border-radius:8px;padding:10px}
+.final{border:2px solid var(--ok)}
+.hide{display:none}
+code,.en{direction:ltr;unicode-bidi:isolate}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9z"/><path d="M12 11l8-4.5M12 11v9M12 11L4 6.5"/></svg></div>
+    <div><h1>מדריך SolidWorks שלב אחר שלב</h1><p class="sub">כתוב מה אתה רוצה לתכנן — וקבל הדרכה מלאה עד המוצר הסופי</p></div>
+  </header>
+
+  <div class="card" id="keyCard">
+    <label for="key">מפתח Anthropic API</label>
+    <div style="display:flex;gap:8px"><input id="key" type="password" autocomplete="off" placeholder="sk-ant-..." style="flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font:inherit;background:var(--bg);color:var(--ink);direction:ltr"><button class="btn sec" id="saveKey">שמור</button></div>
+    <p class="sub" style="margin-top:6px">המפתח נשמר רק בדפדפן שלך ונשלח ישירות ל-Anthropic. אפשר להשיג אחד ב-<a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+  </div>
+
+  <div class="card" id="formCard">
+    <label for="req">מה אתה רוצה ליצור?</label>
+    <textarea id="req" placeholder="לדוגמה: בורג M8 באורך 40 מ״מ עם ראש משושה והברגה אמיתית"></textarea>
+    <div class="chips" id="chips"></div>
+    <div class="row">
+      <div><label for="lvl">רמה</label>
+        <select id="lvl"><option value="מתחיל">מתחיל</option><option value="בינוני" selected>בינוני</option><option value="מתקדם">מתקדם</option></select></div>
+      <div><label for="lang">שפת התפריטים בתוכנה</label>
+        <select id="lang"><option value="en">אנגלית</option><option value="he">עברית</option></select></div>
+      <button class="btn" id="go">צור מדריך</button>
+    </div>
+    <div id="status" style="margin-top:12px"></div>
+  </div>
+
+  <div id="out" class="hide">
+    <div class="card ov" id="ov"></div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--mute)"><span id="progTxt"></span><span>לחץ על מספר כדי לקפוץ לשלב</span></div>
+      <div class="prog"><i id="progBar"></i></div>
+      <div class="stepnav" id="dots"></div>
+      <div class="step" id="step"></div>
+    </div>
+    <div class="card final hide" id="final"></div>
+    <button class="btn sec" id="newBtn">מדריך חדש</button>
+  </div>
+</div>
+
+<script>
+const EX=["בורג M8×40 ראש משושה","אום M10","דסקית (שייבה) M6","גלגל שיניים 20 שיניים","תושבת L עם 4 חורים","קפיץ לחיצה","ציר (Shaft) עם חריץ לפין","מכסה לקופסה עם צירים"];
+const $=id=>document.getElementById(id);
+const chips=$("chips");
+EX.forEach(t=>{const b=document.createElement("button");b.className="chip";b.textContent=t;b.onclick=()=>{$("req").value=t};chips.appendChild(b)});
+
+let guide=null, cur=0, done=new Set();
+const KEY="sw_api_key";
+function getKey(){try{return localStorage.getItem(KEY)||""}catch(e){return ""}}
+function syncKeyUI(){const k=getKey();$("key").value=k;$("saveKey").textContent=k?"עדכן":"שמור"}
+$("saveKey").onclick=()=>{try{localStorage.setItem(KEY,$("key").value.trim())}catch(e){}syncKeyUI();$("saveKey").textContent="נשמר ✓"};
+syncKeyUI();
+
+async function callClaude(text,{model="claude-sonnet-5-5",max=8000}={}){
+  const key=getKey(); if(!key) throw {message:"צריך להזין מפתח API למעלה"};
+  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+    headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model,max_tokens:max,messages:[{role:"user",content:text}]})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok){const m=d.error&&d.error.message||("HTTP "+r.status);throw {code:r.status===429?"rate_limited":r.status===401?"bad_key":"",message:m}}
+  return (d.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
+}
+function parseJSON(t){const a=t.indexOf("{"),b=t.lastIndexOf("}");return JSON.parse(t.slice(a,b+1))}
+const sample=true;
+
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function prompt(req,lvl,lang){
+return `אתה מדריך מומחה ל-SolidWorks. המשתמש רוצה ליצור: "${req}".
+רמת המשתמש: ${lvl}. שפת הממשק בתוכנה: ${lang==="en"?"אנגלית — כתוב שמות פקודות ותפריטים באנגלית בדיוק כפי שהם מופיעים בתוכנה (למשל Extruded Boss/Base, Revolve, Hole Wizard, Cosmetic Thread, Smart Dimension), ואת ההסבר בעברית":"עברית — כתוב שמות פקודות כפי שמופיעים בממשק העברי ובסוגריים את השם האנגלי"}.
+כתוב מדריך מלא שלב אחר שלב מפתיחת קובץ חדש ועד חלק מוגמר ושמור (כולל חומר, ובמידת הצורך שרטוט/הרכבה). אם חסרים מידות — בחר מידות סטנדרטיות הגיוניות (למשל לפי ISO) וציין אותן.
+כל שלב צריך להיות פעולה אחת ברורה שאפשר לבצע. בדרך כלל 8–16 שלבים.
+החזר JSON בלבד במבנה:
+{"title":"שם המוצר","summary":"משפט-שניים על הגישה","specs":[{"k":"תכונה","v":"ערך"}],"steps":[{"phase":"שם השלב הכללי (למשל: סקיצה, פיצ'ר, פרטים, גימור)","title":"כותרת קצרה","path":"מסלול בתפריט/ריבון, למשל Features > Extruded Boss/Base","actions":["פעולה 1","פעולה 2"],"tip":"טיפ או טעות נפוצה (או ריק)","check":"איך לוודא שהשלב הצליח"}],"final":{"result":"מה יש לך ביד בסוף","next":["רעיון להמשך"]}}`;
+}
+
+$("go").onclick=async()=>{
+  const req=$("req").value.trim(); if(!req){$("req").focus();return}
+  $("go").disabled=true;
+  $("status").innerHTML='<div class="loading"><div class="spin"></div><span>בונה את המדריך… זה יכול לקחת כחצי דקה</span></div>';
+  try{
+    const g=parseJSON(await callClaude(prompt(req,$("lvl").value,$("lang").value)));
+    if(!g||!Array.isArray(g.steps)||!g.steps.length) throw {message:"התשובה לא הגיעה במבנה הנכון"};
+    guide=g;cur=0;done=new Set();render();
+    $("formCard").classList.add("hide");$("out").classList.remove("hide");$("status").innerHTML="";
+    try{localStorage.setItem("sw_last",JSON.stringify(g))}catch(e){}
+  }catch(e){
+    $("status").innerHTML='<span class="err">'+(e&&e.code==="rate_limited"?"יותר מדי בקשות, נסה שוב בעוד דקה.":e&&e.code==="bad_key"?"מפתח ה-API לא תקין.":"משהו השתבש: "+esc(e&&e.message||e))+'</span>';
+  }finally{$("go").disabled=!sample}
+};
+
+function render(){
+  const g=guide;
+  $("ov").innerHTML=`<h2>${esc(g.title)}</h2><div>${esc(g.summary)}</div>`+
+   (g.specs&&g.specs.length?`<div class="specs">${g.specs.map(s=>`<div class="spec"><b>${esc(s.k)}</b>${esc(s.v)}</div>`).join("")}</div>`:"");
+  $("dots").innerHTML=g.steps.map((s,i)=>`<button class="dot ${i===cur?"cur":""} ${done.has(i)?"done":""}" data-i="${i}" aria-label="שלב ${i+1}">${i+1}</button>`).join("");
+  $("dots").querySelectorAll(".dot").forEach(b=>b.onclick=()=>{cur=+b.dataset.i;render()});
+  const s=g.steps[cur], last=cur===g.steps.length-1;
+  $("step").innerHTML=`<span class="phase">${esc(s.phase||"")}</span>
+   <h3>שלב ${cur+1}: ${esc(s.title)}</h3>
+   ${s.path?`<div class="path">${esc(s.path)}</div>`:""}
+   <ol class="act">${(s.actions||[]).map(a=>`<li>${esc(a)}</li>`).join("")}</ol>
+   ${s.tip?`<div class="box tip">💡 ${esc(s.tip)}</div>`:""}
+   ${s.check?`<div class="box chk">✓ בדיקה: ${esc(s.check)}</div>`:""}
+   <div class="nav">
+     <button class="btn sec" id="prev" ${cur===0?"disabled":""}>→ הקודם</button>
+     <button class="btn" id="next">${last?"סיימתי ✓":"ביצעתי, הבא ←"}</button>
+   </div>
+   <div class="ask"><label for="q">נתקעת? שאל על השלב הזה</label>
+     <div style="display:flex;gap:8px"><input id="q" placeholder="למשל: לא מוצא את הכפתור Hole Wizard"><button class="btn sec" id="askBtn">שאל</button></div>
+     <div id="ans"></div></div>`;
+  $("prev").onclick=()=>{cur--;render()};
+  $("next").onclick=()=>{done.add(cur);if(!last){cur++;render();window.scrollTo({top:$("dots").offsetTop-20,behavior:"smooth"})}else{render();showFinal()}};
+  $("askBtn").onclick=ask;$("q").onkeydown=e=>{if(e.key==="Enter")ask()};
+  const pct=Math.round(done.size/g.steps.length*100);
+  $("progBar").style.width=pct+"%";$("progTxt").textContent=`הושלמו ${done.size} מתוך ${g.steps.length}`;
+}
+
+async function ask(){
+  const q=$("q").value.trim(); if(!q||!sample)return;
+  const s=guide.steps[cur], box=$("ans");
+  box.className="ans";box.textContent="חושב…";
+  try{
+    box.textContent=await callClaude(`אתה מדריך SolidWorks. המשתמש בונה: ${guide.title}. הוא בשלב ${cur+1}: "${s.title}" (${s.path||""}). פעולות השלב: ${(s.actions||[]).join(" | ")}.
+השאלה שלו: "${q}". ענה בעברית, קצר ומעשי (עד 6 שורות), עם שמות פקודות מדויקים.`,
+     {model:"claude-haiku-5-5",max:800});
+  }catch(e){box.textContent=e&&e.code==="rate_limited"?"יותר מדי בקשות, נסה שוב בעוד דקה.":"לא הצלחתי לענות: "+(e&&e.message||e)}
+}
+
+function showFinal(){
+  const f=guide.final||{};
+  $("final").innerHTML=`<h2 style="margin:0 0 6px">🎉 סיימת!</h2><div>${esc(f.result||"")}</div>`+
+   (f.next&&f.next.length?`<div style="margin-top:10px;font-weight:700">מה אפשר לעשות עכשיו:</div><ul>${f.next.map(n=>`<li>${esc(n)}</li>`).join("")}</ul>`:"");
+  $("final").classList.remove("hide");$("final").scrollIntoView({behavior:"smooth"});
+}
+
+$("newBtn").onclick=()=>{$("out").classList.add("hide");$("final").classList.add("hide");$("formCard").classList.remove("hide");$("req").value="";window.scrollTo({top:0})};
+</script>
+</body>
+</html>
