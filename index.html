@@ -137,6 +137,22 @@ body{margin:0}
 .status{display:inline-block;border-radius:999px;padding:1px 8px;font-size:.72rem;font-weight:600}
 .status.on{background:var(--accent-soft);color:var(--accent)}
 .status.off{background:var(--line);color:var(--muted)}
+
+.row.sel{background:var(--accent-soft);border-radius:10px}
+.selbar{position:fixed;inset:auto 0 calc(62px + env(safe-area-inset-bottom,0px)) 0;z-index:9;display:flex;justify-content:center;padding:0 12px 8px}
+.selbar div{background:var(--ink);color:var(--card);border-radius:16px;padding:8px;display:flex;gap:5px;align-items:center;width:100%;max-width:536px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.selbar b{padding:0 4px;font-size:.85rem;flex:none;white-space:nowrap}
+.selbar button{flex:1;white-space:nowrap;border:0;border-radius:10px;padding:9px 4px;font:inherit;font-size:.82rem;font-weight:600;background:rgba(255,255,255,.14);color:inherit;cursor:pointer}
+.selbar button.pri{background:var(--accent);color:#fff}
+.selbar button:disabled{opacity:.4}
+body.selmode main{padding-bottom:70px}
+.catpick{display:flex;flex-wrap:wrap;gap:6px}
+.catpick .chip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:6px}
+.newcat{display:flex;gap:8px}
+.newcat input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px;font:inherit}
+.edited{font-size:.7rem;color:var(--accent);font-weight:600}
+.fidbtn{display:flex;align-items:center;justify-content:center;gap:8px}
+.toast{position:fixed;inset:auto 0 calc(140px + env(safe-area-inset-bottom,0px)) 0;margin:auto;width:max-content;max-width:90%;background:var(--ink);color:var(--card);padding:10px 16px;border-radius:12px;z-index:40;font-size:.9rem}
 </style>
 </head>
 <body>
@@ -146,6 +162,7 @@ body{margin:0}
   <p>הנתונים מוצפנים. הקלד את קוד הגישה כדי לפתוח.</p>
   <input type="password" id="pw" placeholder="קוד גישה" aria-label="קוד גישה" autocapitalize="off" autocorrect="off" spellcheck="false">
   <label class="rem"><input type="checkbox" id="rem" checked> לזכור במכשיר הזה</label>
+  <button class="btn pri fidbtn" type="button" id="fidBtn" hidden>🙂 כניסה עם Face ID</button>
   <button class="btn pri" type="submit" id="unlockBtn">פתח</button>
   <div class="err" id="lockErr" role="alert"></div>
 </form></div>
@@ -159,7 +176,7 @@ body{margin:0}
     </div>
   </header>
   <main id="view"><div class="card empty">טוען את העסקאות…</div></main>
-  <p class="foot">נתונים מקבלות וחשבוניות ב-Gmail וב-Yahoo, ותשלומי ביט ופייבוקס מהודעות האשראי. מתעדכן כל בוקר. <button class="btn" id="logout" style="flex:none;padding:4px 10px;font-size:.75rem">נעל</button></p>
+  <p class="foot">נתונים מקבלות וחשבוניות ב-Gmail וב-Yahoo, ותשלומי ביט ופייבוקס מהודעות האשראי. מתעדכן כל בוקר. <button class="btn" id="settingsBtn" style="flex:none;padding:4px 10px;font-size:.75rem">⚙️ הגדרות</button> <button class="btn" id="logout" style="flex:none;padding:4px 10px;font-size:.75rem">נעל</button></p>
 </div>
 
 <div class="tabbar"><nav aria-label="ניווט">
@@ -170,6 +187,7 @@ body{margin:0}
   <button class="tab" data-v="cats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.4 6.4"/></svg>קטגוריות</button>
 </nav></div>
 
+<div class="selbar" id="selbar" hidden><div><b id="selN">0 נבחרו</b><button id="selAll">בחר הכל</button><button id="selCat">🏷️ קטגוריה</button><button class="pri" id="selPdf">📄 PDF</button><button id="selDone">סיום</button></div></div>
 <div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 
 <script>
@@ -187,6 +205,7 @@ const mLabel=k=>{const[y,m]=k.split("-");return `${MONTHS[+m-1]} ${y}`};
 const initial=s=>{const t=String(s||"?").replace(/^PayPal:\s*/i,"").trim();return (t.match(/[A-Za-zא-ת0-9]/)||["?"])[0].toUpperCase()};
 const vendor=r=>String(r.description||"").replace(/^PayPal:\s*/i,"").split(/\s+[–-]\s+/)[0].trim();
 
+let selMode=false,SEL=new Set(),lastRows=[],CATOV={};
 let DATA=[],SUBS=[],RATES={},MONTHKEYS=[],month=null,view="home",txCat="",txQ="";
 
 function setMonthCtl(){
@@ -264,7 +283,8 @@ function monthsChart(){
 function rowHtml(r){
   const c=col(r.category);
   const meta=[r.category===BP?(r.card?`כרטיס ••${r.card}`:"SMS אשראי"):r.category,r.source==="Yahoo"?"Yahoo":r.source==="Gmail"?"Gmail":null,(r.installments||1)>1?`${r.installments} תשלומים`:null].filter(Boolean).join(" · ");
-  return `<button class="row" data-id="${esc(r.id)}"><span class="ic" style="background:${c}">${esc(r.category===BP?(r.sub==="Bit"?"B":"P"):initial(r.description))}</span><span class="t"><b>${esc(r.description)}</b><small>${esc(meta)}</small></span><span class="a ${r.amount==null?"na":""} num">${r.amount==null?"אין סכום":nis(r.amount)}</span></button>`;
+  const on=selMode&&SEL.has(r.id);
+  return `<button class="row${on?" sel":""}" data-id="${esc(r.id)}"${selMode?` aria-pressed="${on}"`:""}><span class="ic" style="background:${on?"var(--accent)":c}">${on?"✓":esc(r.category===BP?(r.sub==="Bit"?"B":"P"):initial(r.description))}</span><span class="t"><b>${esc(r.description)}</b><small>${CATOV[r.id]?'<span class="edited">✎ </span>':""}${esc(meta)}</small></span><span class="a ${r.amount==null?"na":""} num">${r.amount==null?"אין סכום":nis(r.amount)}</span></button>`;
 }
 function listHtml(rows){
   if(!rows.length)return '<div class="empty">לא נמצאו עסקאות.</div>';
@@ -272,18 +292,18 @@ function listHtml(rows){
   return days.map(d=>`<div class="dayhead"><span>${fmtD(d.key)}</span><span class="num">${nis0(d.sum)}</span></div>`+d.rows.map(rowHtml).join("")).join("");
 }
 function tx(){
-  let rows=txQ?DATA:inMonth(month);
+  let rows=txQ?DATA:inMonth(month);lastRows=rows;
   if(txCat)rows=rows.filter(r=>r.category===txCat);
   if(txQ){const q=txQ.toLowerCase();rows=rows.filter(r=>(r.description+" "+r.category+" "+(r.sub||"")).toLowerCase().includes(q))}
   const cats=[...new Set(DATA.map(r=>r.category))].sort((a,b)=>a.localeCompare(b,"he"));
   return `<div class="tools">
     <input class="search" id="q" type="search" placeholder="חיפוש בכל העסקאות: ספק, קטגוריה…" value="${esc(txQ)}" aria-label="חיפוש">
     <div class="chips" id="chips"><button class="chip" data-c="" aria-pressed="${!txCat}">הכל</button>${cats.map(c=>`<button class="chip" data-c="${esc(c)}" aria-pressed="${txCat===c}">${esc(c)}</button>`).join("")}</div></div>
-  <section class="card" style="margin-top:12px"><h2><span>${txQ?`תוצאות חיפוש (${rows.length})`:`${esc(mLabel(month))} · ${rows.length} עסקאות`}</span><span class="num">${nis0(sum(rows))}</span></h2>
+  <section class="card" style="margin-top:12px"><h2><span>${txQ?`תוצאות חיפוש (${rows.length})`:`${esc(mLabel(month))} · ${rows.length} עסקאות`} · <span class="num">${nis0(sum(rows))}</span></span><button data-selmode>${selMode?"סיום בחירה":"בחירה / PDF"}</button></h2>
   <div class="list">${listHtml(rows)}</div></section>`;
 }
 function bpView(){
-  const all=DATA.filter(r=>r.category===BP),rs=inMonth(month).filter(r=>r.category===BP);
+  const all=DATA.filter(r=>r.category===BP);lastRows=all;const rs=inMonth(month).filter(r=>r.category===BP);
   const months=MONTHKEYS.slice(-6).map(k=>({k,t:sum(inMonth(k).filter(r=>r.category===BP))}));
   const max=Math.max(1,...months.map(m=>m.t));
   const cards=groupBy(all,r=>r.card||"—").sort((a,b)=>b.sum-a.sum);
@@ -298,7 +318,7 @@ function bpView(){
     <section class="card"><h2>לפי חודש</h2><div class="cats">${months.map(m=>`<div class="cat" style="cursor:default"><span class="nm">${esc(mLabel(m.k))}</span><span class="v num">${nis0(m.t)}</span><span class="track"><b style="width:${Math.max(2,m.t/max*100)}%;background:var(--c-bp)"></b></span></div>`).join("")}</div>
       <h2 style="margin-top:14px">לפי כרטיס</h2><div class="split">${cards.map(c=>`<span class="pill">••${esc(c.key)} <span class="num">${nis0(c.sum)}</span></span>`).join("")}</div></section>
   </div>
-  <section class="card"><h2>כל ההעברות</h2><div class="list">${listHtml(all)}</div></section>
+  <section class="card"><h2>כל ההעברות<button data-selmode>${selMode?"סיום בחירה":"בחירה / PDF"}</button></h2><div class="list">${listHtml(all)}</div></section>
   <p class="foot">ביט ופייבוקס לא שולחים קבלות במייל. ההעברות נקלטות מהודעות ה-SMS של כאל וישראכרט.</p>`;
 }
 function catsView(){
@@ -327,13 +347,14 @@ function openRow(id){
   const q=encodeURIComponent(`${v} after:${shift(r.date,-3)} before:${shift(r.date,6)}`);
   const same=r.category===BP?DATA.filter(x=>x.sub===r.sub&&x.amount===r.amount):[];
   $("sheet").innerHTML=`<span class="grab"></span>
-   <div><div style="color:var(--muted);font-size:.85rem">${esc(r.category)}</div><h2 style="font-size:1.15rem">${esc(r.description)}</h2></div>
+   <div><div style="color:var(--muted);font-size:.85rem">${esc(r.category)}${CATOV[r.id]?` <span class="edited">✎ שונה ידנית (במקור: ${esc(r.origCat)})</span>`:""}</div><h2 style="font-size:1.15rem">${esc(r.description)}</h2></div>
    <div class="amt num" style="color:${r.category===BP?"var(--hot)":"var(--ink)"}">${r.amount==null?"אין סכום במייל":nis(r.amount)}</div>
    <dl class="kv"><dt>תאריך</dt><dd>${fmtD(r.date)}</dd>${(r.installments||1)>1?`<dt>תשלומים</dt><dd>${r.installments}</dd>`:""}<dt>מקור</dt><dd>${esc(r.source)}${r.card?` · כרטיס ••${esc(r.card)}`:""}${r.issuer?` (${esc(r.issuer)})`:""}</dd>${r.sub?`<dt>תת קטגוריה</dt><dd>${esc(r.sub)}</dd>`:""}</dl>
    ${r.url&&!r.exact&&r.source!=="SMS אשראי"?`<p style="margin:0;font-size:.8rem;color:var(--muted)">הקישור מחפש את ${esc(vendor(r))} סביב התאריך. הקבלה תהיה בין התוצאות הראשונות.</p>`:""}
    ${same.length>1?`<p style="margin:0;font-size:.88rem">${esc(r.sub)} של ${nis(r.amount)} חזר ${same.length} פעמים: ${same.map(x=>fmtD(x.date)).join(", ")}</p>`:""}
    <div class="btns">${r.url?`<a class="btn pri" href="${esc(r.url)}" target="_blank" rel="noopener">📄 ${r.category===BP?"הודעת האשראי":"פתח קבלה"}${r.source==="Yahoo"?" (Yahoo)":r.source==="Gmail"?" (Gmail)":""}</a>`:`<span class="btn" style="cursor:default;color:var(--muted)">אין קבלה במייל</span>`}
-     <button class="btn" id="closeSheet">סגור</button></div>`;
+     </div>
+   <div class="btns"><button class="btn" data-catedit="${esc(r.id)}">🏷️ שנה קטגוריה</button><button class="btn" data-pdf1="${esc(r.id)}">📄 PDF</button><button class="btn" id="closeSheet">סגור</button></div>`;
   $("scrim").hidden=false;$("closeSheet").focus();
 }
 function shift(d,n){const x=new Date(d+"T12:00:00Z");x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10).replace(/-/g,"/")}
@@ -354,6 +375,131 @@ function subsView(){
   <p class="foot">לחיצה על חיוב פותחת את החשבונית במייל (Yahoo או Gmail).</p>`;
 }
 let subOpen=null;
+
+/* ---------- categories ---------- */
+function loadCatOv(){try{CATOV=JSON.parse(localStorage.getItem("ks-cat")||"{}")||{}}catch(_){CATOV={}}}
+function saveCatOv(){try{localStorage.setItem("ks-cat",JSON.stringify(CATOV))}catch(_){}}
+function applyCatOv(){DATA.forEach(r=>{if(r.origCat==null)r.origCat=r.category;r.category=CATOV[r.id]||r.origCat})}
+function allCats(){const s=new Set(Object.keys(CATS));DATA.forEach(r=>s.add(r.category));return [...s].sort((a,b)=>a===BP?1:b===BP?-1:a==="אחר"?1:b==="אחר"?-1:a.localeCompare(b,"he"))}
+function openCatPicker(ids){
+  const rows=DATA.filter(r=>ids.includes(r.id));if(!rows.length)return;
+  const cur=rows.length===1?rows[0].category:null,orig=rows.length===1?rows[0].origCat:null;
+  const anyEdited=rows.some(r=>CATOV[r.id]);
+  $("sheet").innerHTML=`<span class="grab"></span>
+   <h2 style="font-size:1.1rem">שינוי קטגוריה ${rows.length>1?`ל-${rows.length} עסקאות`:`· ${esc(rows[0].description)}`}</h2>
+   <div class="catpick">${allCats().map(c=>`<button class="chip" data-setcat="${esc(c)}" aria-pressed="${c===cur}"><i style="background:${col(c)}"></i>${esc(c)}</button>`).join("")}</div>
+   <form class="newcat" id="newCatForm"><input id="newCat" placeholder="או קטגוריה חדשה…" maxlength="40"><button class="btn pri" style="flex:none">הוסף</button></form>
+   ${anyEdited?`<button class="btn" data-resetcat>↺ החזר לקטגוריה המקורית${orig?` (${esc(orig)})`:""}</button>`:""}
+   <button class="btn" id="closeSheet">ביטול</button>`;
+  $("sheet").dataset.ids=JSON.stringify(ids);$("scrim").hidden=false;
+  $("newCatForm").addEventListener("submit",e=>{e.preventDefault();const v=$("newCat").value.trim();if(v)setCat(v)});
+}
+function setCat(c){
+  const ids=JSON.parse($("sheet").dataset.ids||"[]");
+  DATA.filter(r=>ids.includes(r.id)).forEach(r=>{if(c==null||c===r.origCat)delete CATOV[r.id];else CATOV[r.id]=c});
+  saveCatOv();applyCatOv();closeSheet();
+  if(selMode){SEL.clear();setSelMode(false)}
+  render();toast(c==null?"הקטגוריה הוחזרה למקור":`עודכן ל"${c}"`);
+}
+function toast(m){const d=document.createElement("div");d.className="toast";d.setAttribute("role","status");d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
+
+/* ---------- selection ---------- */
+function setSelMode(on){selMode=on;if(!on)SEL.clear();document.body.classList.toggle("selmode",on);$("selbar").hidden=!on;updSel();render()}
+function updSel(){$("selN").textContent=`${SEL.size} נבחרו`;$("selPdf").disabled=$("selCat").disabled=!SEL.size;
+  const all=lastRows.length&&lastRows.every(r=>SEL.has(r.id));$("selAll").textContent=all?"נקה הכל":"בחר הכל"}
+$("selDone").addEventListener("click",()=>setSelMode(false));
+$("selAll").addEventListener("click",()=>{const all=lastRows.every(r=>SEL.has(r.id));lastRows.forEach(r=>all?SEL.delete(r.id):SEL.add(r.id));updSel();render()});
+$("selCat").addEventListener("click",()=>openCatPicker([...SEL]));
+$("selPdf").addEventListener("click",()=>makePdf(DATA.filter(r=>SEL.has(r.id))));
+
+/* ---------- PDF ---------- */
+let h2pLoading=null;
+function loadH2P(){if(window.html2pdf)return Promise.resolve();return h2pLoading||(h2pLoading=new Promise((ok,no)=>{const s=document.createElement("script");s.src="lib/html2pdf.bundle.min.js";s.onload=ok;s.onerror=()=>{h2pLoading=null;no(new Error("load"))};document.head.appendChild(s)}))}
+function pdfHtml(rows){
+  rows=rows.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const tot=sum(rows),d0=rows[0].date,d1=rows[rows.length-1].date,today=new Date().toISOString().slice(0,10);
+  const S='style';const cell='padding:7px 8px;border-bottom:1px solid #e3e7e6;vertical-align:top;font-size:12px';
+  const link=r=>r.url?`<a href="${esc(r.url)}" ${S}="color:#0f766e;text-decoration:none;font-weight:600">${r.category===BP?"הודעה":"קבלה"} ←</a>`:"—";
+  const head=`<div ${S}="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0f766e;padding-bottom:10px;margin-bottom:16px">
+    <div><div ${S}="font-size:22px;font-weight:700">${rows.length===1?"פרטי עסקה":"דוח עסקאות"}</div><div ${S}="color:#5b6664;font-size:12px">הכסף שלי · הופק ${fmtD(today)}</div></div>
+    <div ${S}="text-align:left;font-size:12px;color:#5b6664">${rows.length===1?"":`${fmtD(d0)} – ${fmtD(d1)}<br>${rows.length} עסקאות`}</div></div>`;
+  if(rows.length===1){const r=rows[0];
+    const kv=[["תיאור",esc(r.description)],["סכום",`<b ${S}="font-size:20px">${r.amount==null?"אין סכום במייל":nis(r.amount)}</b>`],["תאריך",fmtD(r.date)],["קטגוריה",esc(r.category)+(CATOV[r.id]?` · במקור: ${esc(r.origCat)}`:"")],r.sub?["תת קטגוריה",esc(r.sub)]:null,(r.installments||1)>1?["תשלומים",r.installments]:null,["מקור",esc(r.source)+(r.card?` · כרטיס ••${esc(r.card)}`:"")+(r.issuer?` (${esc(r.issuer)})`:"")],["קבלה במייל",r.url?`<a href="${esc(r.url)}" ${S}="color:#0f766e;font-weight:600">פתח את הקבלה במייל</a>`:"אין"]].filter(Boolean);
+    return `<div ${S}="padding:36px">${head}<table ${S}="width:100%;border-collapse:collapse">${kv.map(([k,v])=>`<tr><td ${S}="${cell};color:#5b6664;width:130px;font-size:13px">${k}</td><td ${S}="${cell};font-size:13px">${v}</td></tr>`).join("")}</table></div>`}
+  const byCat=groupBy(rows,r=>r.category).sort((a,b)=>b.sum-a.sum);
+  return `<div ${S}="padding:32px">${head}
+   <div ${S}="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"><div ${S}="background:#dcefeb;border-radius:10px;padding:10px 14px"><div ${S}="font-size:11px;color:#5b6664">סה״כ</div><div ${S}="font-size:20px;font-weight:700">${nis(Math.round(tot*100)/100)}</div></div>
+   ${byCat.map(c=>`<div ${S}="border:1px solid #e3e7e6;border-radius:10px;padding:8px 12px"><div ${S}="font-size:11px;color:#5b6664">${esc(c.key)}</div><div ${S}="font-size:14px;font-weight:600">${nis0(c.sum)} · ${c.rows.length}</div></div>`).join("")}</div>
+   <table ${S}="width:100%;border-collapse:collapse"><thead><tr ${S}="background:#f3f5f4">${["תאריך","תיאור","קטגוריה","מקור","סכום","קבלה"].map(h=>`<th ${S}="${cell};text-align:right;font-size:11px;color:#5b6664">${h}</th>`).join("")}</tr></thead>
+   <tbody>${rows.map(r=>`<tr><td ${S}="${cell};white-space:nowrap">${fmtD(r.date)}</td><td ${S}="${cell}">${esc(r.description)}${(r.installments||1)>1?` <span ${S}="color:#5b6664">· ${r.installments} תשלומים</span>`:""}</td><td ${S}="${cell}">${esc(r.category)}</td><td ${S}="${cell};white-space:nowrap">${esc(r.source)}${r.card?` ••${esc(r.card)}`:""}</td><td ${S}="${cell};white-space:nowrap;font-weight:600">${r.amount==null?"—":nis(r.amount)}</td><td ${S}="${cell};white-space:nowrap">${link(r)}</td></tr>`).join("")}
+   <tr><td colspan="4" ${S}="${cell};font-weight:700;border-top:2px solid #111">סה״כ</td><td ${S}="${cell};font-weight:700;border-top:2px solid #111;white-space:nowrap">${nis(Math.round(tot*100)/100)}</td><td ${S}="${cell};border-top:2px solid #111"></td></tr></tbody></table>
+   <p ${S}="font-size:10px;color:#5b6664;margin-top:14px">הקישורים "קבלה" פותחים את המייל עם הקבלה ב-Gmail או ב-Yahoo.</p></div>`;
+}
+async function makePdf(rows){
+  if(!rows.length)return;
+  toast("מכין PDF…");
+  try{
+    await loadH2P();
+    const name=rows.length===1?`עסקה ${vendor(rows[0]).slice(0,30)} ${rows[0].date}.pdf`:`עסקאות ${rows.length} ${new Date().toISOString().slice(0,10)}.pdf`;
+    const blob=await html2pdf().set({margin:[8,6,10,6],filename:name,image:{type:"jpeg",quality:.95},html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["css"],avoid:"tr"},enableLinks:true}).from(`<div dir="rtl" style="font-family:Heebo,Arial,sans-serif;color:#111;background:#fff;width:760px;letter-spacing:.01px">${pdfHtml(rows)}</div>`,"string").outputPdf("blob");
+    const file=new File([blob],name.replace(/[\\/:*?"<>|]/g,"-"),{type:"application/pdf"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return}catch(e){if(e&&e.name==="AbortError")return}}
+    const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);
+  }catch(e){console.error(e);toast("לא הצלחתי ליצור PDF. בדוק חיבור לאינטרנט ונסה שוב.")}
+}
+
+/* ---------- Face ID (WebAuthn) ---------- */
+const enc64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+let CURPW=null;
+function fidInfo(){try{return JSON.parse(localStorage.getItem("ks-fid")||"null")}catch(_){return null}}
+const fidSupported=()=>!!(window.PublicKeyCredential&&navigator.credentials&&window.isSecureContext);
+async function prfKey(out){return crypto.subtle.importKey("raw",out,{name:"AES-GCM"},false,["encrypt","decrypt"])}
+async function fidAssert(info){
+  const cred=await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{type:"public-key",id:b64(info.id),transports:["internal","hybrid"]}],userVerification:"required",timeout:60000,extensions:info.mode==="prf"?{prf:{eval:{first:b64(info.salt)}}}:{}}});
+  return cred;
+}
+async function enableFid(){
+  if(!fidSupported()){toast("המכשיר או הדפדפן לא תומכים ב-Face ID לאתרים");return}
+  if(!CURPW){toast("קודם פתח עם קוד הגישה");return}
+  try{
+    const salt=crypto.getRandomValues(new Uint8Array(32));
+    const cred=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:"הכסף שלי"},user:{id:crypto.getRandomValues(new Uint8Array(16)),name:"kesef-sheli",displayName:"הכסף שלי"},pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"preferred"},timeout:60000,extensions:{prf:{eval:{first:salt}}}}});
+    const ext=cred.getClientExtensionResults?cred.getClientExtensionResults():{};
+    let info={id:enc64(cred.rawId),salt:enc64(salt),mode:"gate"};
+    let out=ext.prf&&ext.prf.results&&ext.prf.results.first;
+    if(!out&&ext.prf&&ext.prf.enabled){info.mode="prf";const a=await fidAssert(info);const e2=a.getClientExtensionResults();out=e2.prf&&e2.prf.results&&e2.prf.results.first;if(!out)info.mode="gate"}
+    if(out){info.mode="prf";const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},await prfKey(out),new TextEncoder().encode(CURPW));info.iv=enc64(iv);info.ct=enc64(ct);try{localStorage.removeItem("ks-pw")}catch(_){}}
+    else{try{localStorage.setItem("ks-pw",CURPW)}catch(_){}}
+    localStorage.setItem("ks-fid",JSON.stringify(info));
+    toast("Face ID הופעל ✓");openSettings();
+  }catch(e){console.error(e);toast(e&&e.name==="NotAllowedError"?"הפעלת Face ID בוטלה":"לא הצלחתי להפעיל Face ID")}
+}
+function disableFid(){try{localStorage.removeItem("ks-fid");localStorage.removeItem("ks-pw")}catch(_){}toast("Face ID כובה");openSettings()}
+async function fidUnlock(){
+  const info=fidInfo();if(!info)return;
+  $("lockErr").textContent="";
+  try{
+    const a=await fidAssert(info);let pw;
+    if(info.mode==="prf"){const e=a.getClientExtensionResults();const out=e.prf&&e.prf.results&&e.prf.results.first;if(!out)throw new Error("prf");
+      pw=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(info.iv)},await prfKey(out),b64(info.ct)))}
+    else{pw=localStorage.getItem("ks-pw");if(!pw)throw new Error("nopw")}
+    await unlock(pw,false);
+  }catch(e){console.error(e);$("lockErr").textContent=e&&e.name==="NotAllowedError"?"":"Face ID לא הצליח. הקלד את קוד הגישה."}
+}
+function openSettings(){
+  const info=fidInfo(),n=Object.keys(CATOV).length;
+  $("sheet").innerHTML=`<span class="grab"></span><h2 style="font-size:1.1rem">הגדרות</h2>
+   <section><h3 style="margin:0 0 6px;font-size:.95rem">כניסה עם Face ID / Touch ID</h3>
+   <p style="margin:0 0 8px;font-size:.85rem;color:var(--muted)">${info?"פעיל במכשיר הזה. בפתיחה תתבקש לזיהוי פנים במקום קוד.":fidSupported()?"פתיחה בזיהוי פנים או טביעת אצבע במקום הקלדת קוד.":"הדפדפן הזה לא תומך."}</p>
+   ${info?`<button class="btn" data-fidoff>כבה Face ID</button>`:fidSupported()?`<button class="btn pri" data-fidon>🙂 הפעל Face ID</button>`:""}</section>
+   <section><h3 style="margin:8px 0 6px;font-size:.95rem">קטגוריות ששיניתי</h3>
+   <p style="margin:0 0 8px;font-size:.85rem;color:var(--muted)">${n?`${n} עסקאות שקטגוריה שלהן שונתה ידנית (נשמר במכשיר הזה).`:"עוד לא שינית קטגוריות. לחץ על עסקה ← 🏷️ שנה קטגוריה."}</p>
+   ${n?`<button class="btn" data-resetall>↺ החזר הכל למקור</button>`:""}</section>
+   <button class="btn" id="closeSheet">סגור</button>`;
+  $("scrim").hidden=false;
+}
+$("settingsBtn").addEventListener("click",openSettings);
+$("fidBtn").addEventListener("click",fidUnlock);
 /* ---------- routing ---------- */
 const VIEWS={home,tx,bp:bpView,subs:subsView,cats:catsView};
 function render(){
@@ -363,7 +509,7 @@ function render(){
   $("view").innerHTML=VIEWS[view]();
   if(view==="tx"){const q=$("q");q.addEventListener("input",()=>{txQ=q.value.trim();const p=q.selectionStart;render();const n=$("q");n.focus();n.setSelectionRange(p,p)})}
 }
-function go(v){view=VIEWS[v]?v:"home";if(location.hash.slice(1)!==view){try{history.replaceState(null,"","#"+view)}catch(_){}}render();window.scrollTo(0,0)}
+function go(v){if(selMode&&v!==view){selMode=false;SEL.clear();document.body.classList.remove("selmode");$("selbar").hidden=true}view=VIEWS[v]?v:"home";if(location.hash.slice(1)!==view){try{history.replaceState(null,"","#"+view)}catch(_){}}render();window.scrollTo(0,0)}
 document.querySelector(".tabbar").addEventListener("click",e=>{const t=e.target.closest(".tab");if(t)go(t.dataset.v)});
 $("view").addEventListener("click",e=>{
   const g=e.target.closest("[data-go]");if(g){go(g.dataset.go);return}
@@ -372,8 +518,19 @@ $("view").addEventListener("click",e=>{
   const ch=e.target.closest(".chip");if(ch){txCat=ch.dataset.c;render();return}
   const sb=e.target.closest("[data-sub]");if(sb){subOpen=sb.dataset.sub;render();window.scrollTo(0,0);return}
   if(e.target.closest("[data-subback]")){subOpen=null;render();return}
-  const r=e.target.closest("button.row[data-id]");if(r)openRow(r.dataset.id)});
-$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim"||e.target.id==="closeSheet")closeSheet()});
+  if(e.target.closest("[data-selmode]")){setSelMode(!selMode);return}
+  const r=e.target.closest("button.row[data-id]");if(!r)return;
+  if(selMode){const id=r.dataset.id;SEL.has(id)?SEL.delete(id):SEL.add(id);updSel();render();return}
+  openRow(r.dataset.id)});
+$("scrim").addEventListener("click",e=>{if(e.target.id==="scrim"||e.target.id==="closeSheet"){closeSheet();return}
+  const t=e.target.closest("[data-catedit],[data-pdf1],[data-setcat],[data-resetcat],[data-fidon],[data-fidoff],[data-resetall]");if(!t)return;
+  if(t.dataset.catedit){openCatPicker([t.dataset.catedit]);return}
+  if(t.dataset.pdf1){const r=DATA.find(x=>x.id===t.dataset.pdf1);closeSheet();makePdf([r]);return}
+  if(t.dataset.setcat!=null){setCat(t.dataset.setcat);return}
+  if(t.hasAttribute("data-resetcat")){setCat(null);return}
+  if(t.hasAttribute("data-fidon")){enableFid();return}
+  if(t.hasAttribute("data-fidoff")){disableFid();return}
+  if(t.hasAttribute("data-resetall")){CATOV={};saveCatOv();applyCatOv();closeSheet();render();toast("כל הקטגוריות הוחזרו למקור")}});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("scrim").hidden)closeSheet()});
 $("mPrev").addEventListener("click",()=>{const i=MONTHKEYS.indexOf(month);if(i>0){month=MONTHKEYS[i-1];render()}});
 $("mNext").addEventListener("click",()=>{const i=MONTHKEYS.indexOf(month);if(i<MONTHKEYS.length-1){month=MONTHKEYS[i+1];render()}});
@@ -390,6 +547,7 @@ async function decrypt(pw){
 }
 function start(data){
   DATA=data.tx.filter(r=>r&&r.date&&/^\d{4}-\d{2}-\d{2}$/.test(r.date));SUBS=data.subs||[];RATES=data.rates||{};
+  loadCatOv();applyCatOv();
   MONTHKEYS=[...new Set(DATA.map(r=>r.date.slice(0,7)))].sort();
   month=MONTHKEYS[MONTHKEYS.length-1];
   const last=DATA.map(r=>r.date).sort().pop();
@@ -399,13 +557,16 @@ function start(data){
 }
 async function unlock(pw,remember){
   $("lockErr").textContent="";$("unlockBtn").disabled=true;$("unlockBtn").textContent="פותח…";
-  try{const d=await decrypt(pw);if(remember){try{localStorage.setItem("ks-pw",pw)}catch(_){}}start(d)}
-  catch(e){$("lockErr").textContent=e&&e.message==="net"?"אין חיבור לאינטרנט. נסה שוב.":"קוד הגישה שגוי.";try{localStorage.removeItem("ks-pw")}catch(_){}}
+  try{const d=await decrypt(pw);CURPW=pw;const fi=fidInfo();if(remember&&!(fi&&fi.mode==="prf")){try{localStorage.setItem("ks-pw",pw)}catch(_){}}start(d);if(!fi&&fidSupported()&&!localStorage.getItem("ks-fid-asked")){try{localStorage.setItem("ks-fid-asked","1")}catch(_){}setTimeout(()=>{if($("scrim").hidden)openSettings()},800)}}
+  catch(e){$("lockErr").textContent=e&&e.message==="net"?"אין חיבור לאינטרנט. נסה שוב.":"קוד הגישה שגוי.";if(!(e&&e.message==="net")){try{localStorage.removeItem("ks-pw")}catch(_){}}}
   finally{$("unlockBtn").disabled=false;$("unlockBtn").textContent="פתח"}
 }
 $("lockForm").addEventListener("submit",e=>{e.preventDefault();const pw=$("pw").value.trim();if(pw)unlock(pw,$("rem").checked)});
-$("logout").addEventListener("click",()=>{try{localStorage.removeItem("ks-pw")}catch(_){}location.reload()});
-(function(){let pw=null;try{pw=localStorage.getItem("ks-pw")}catch(_){}if(pw)unlock(pw,true);else $("pw").focus()})();
+$("logout").addEventListener("click",()=>{const fi=fidInfo();if(!(fi&&fi.mode==="gate")){try{localStorage.removeItem("ks-pw")}catch(_){}}try{sessionStorage.setItem("ks-locked","1")}catch(_){}location.reload()});
+(function(){
+  const fi=fidInfo();let locked=false;try{locked=sessionStorage.getItem("ks-locked")==="1";sessionStorage.removeItem("ks-locked")}catch(_){}
+  if(fi&&fidSupported()){$("fidBtn").hidden=false;$("rem").closest("label").hidden=true;if(!locked)fidUnlock();return}
+  let pw=null;try{pw=localStorage.getItem("ks-pw")}catch(_){}if(pw&&!locked)unlock(pw,true);else $("pw").focus()})();
 </script>
 </body>
 </html>
