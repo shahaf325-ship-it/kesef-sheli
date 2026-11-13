@@ -55,6 +55,13 @@ ol.act li{margin-bottom:6px}
 .ans{margin-top:8px;white-space:pre-wrap;font-size:.92rem;background:var(--soft);border-radius:8px;padding:10px}
 .final{border:2px solid var(--ok)}
 .hide{display:none}
+.libh{font-size:1.05rem;font-weight:800;margin:6px 2px 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:18px}
+.gcard{display:flex;gap:12px;align-items:flex-start;text-align:right;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;font:inherit;color:var(--ink);cursor:pointer}
+.gcard:hover{border-color:var(--acc)}
+.gcard .ic{font-size:1.6rem;line-height:1;flex:none;width:36px;text-align:center}
+.gcard b{display:block;font-size:.95rem;line-height:1.35}
+.gcard small{color:var(--mute);font-size:.8rem}
 code,.en{direction:ltr;unicode-bidi:isolate}
 </style>
 </head>
@@ -62,16 +69,22 @@ code,.en{direction:ltr;unicode-bidi:isolate}
 <div class="wrap">
   <header>
     <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9z"/><path d="M12 11l8-4.5M12 11v9M12 11L4 6.5"/></svg></div>
-    <div><h1>מדריך SolidWorks שלב אחר שלב</h1><p class="sub">כתוב מה אתה רוצה לתכנן — וקבל הדרכה מלאה עד המוצר הסופי</p></div>
+    <div><h1>מדריך SolidWorks שלב אחר שלב</h1><p class="sub">בחר מה לתכנן וקבל הדרכה מלאה עד המוצר הסופי</p></div>
   </header>
 
-  <div class="card" id="keyCard">
+  <div id="home">
+  <div id="lib"></div>
+
+  <details class="card" id="aiBox">
+    <summary style="cursor:pointer;font-weight:700">✨ בקשה חופשית עם AI (דורש מפתח API)</summary>
+    <p class="sub" style="margin:8px 0 12px">לא מצאת את מה שחיפשת בספרייה? עם מפתח Claude API אפשר לבקש כל חלק.</p>
+  <div id="keyCard" style="margin-bottom:14px">
     <label for="key">מפתח Anthropic API</label>
     <div style="display:flex;gap:8px"><input id="key" type="password" autocomplete="off" placeholder="sk-ant-..." style="flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font:inherit;background:var(--bg);color:var(--ink);direction:ltr"><button class="btn sec" id="saveKey">שמור</button></div>
-    <p class="sub" style="margin-top:6px">המפתח נשמר רק בדפדפן שלך ונשלח ישירות ל-Anthropic. אפשר להשיג אחד ב-<a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+    <p class="sub" style="margin-top:6px">המפתח נשמר רק בדפדפן שלך ונשלח ישירות ל-Anthropic. אפשר להשיג אחד ב-<a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">platform.claude.com</a>.</p>
   </div>
 
-  <div class="card" id="formCard">
+  <div id="formCard">
     <label for="req">מה אתה רוצה ליצור?</label>
     <textarea id="req" placeholder="לדוגמה: בורג M8 באורך 40 מ״מ עם ראש משושה והברגה אמיתית"></textarea>
     <div class="chips" id="chips"></div>
@@ -83,6 +96,8 @@ code,.en{direction:ltr;unicode-bidi:isolate}
       <button class="btn" id="go">צור מדריך</button>
     </div>
     <div id="status" style="margin-top:12px"></div>
+  </div>
+  </details>
   </div>
 
   <div id="out" class="hide">
@@ -98,6 +113,7 @@ code,.en{direction:ltr;unicode-bidi:isolate}
   </div>
 </div>
 
+<script src="guides.js"></script>
 <script>
 const EX=["בורג M8×40 ראש משושה","אום M10","דסקית (שייבה) M6","גלגל שיניים 20 שיניים","תושבת L עם 4 חורים","קפיץ לחיצה","ציר (Shaft) עם חריץ לפין","מכסה לקופסה עם צירים"];
 const $=id=>document.getElementById(id);
@@ -112,7 +128,7 @@ $("saveKey").onclick=()=>{try{localStorage.setItem(KEY,$("key").value.trim())}ca
 syncKeyUI();
 
 async function callClaude(text,{model="claude-sonnet-5-5",max=8000}={}){
-  const key=getKey(); if(!key) throw {message:"צריך להזין מפתח API למעלה"};
+  const key=getKey(); if(!key) throw {message:"השאלות דורשות מפתח API (בעמוד הראשי, תחת ״בקשה חופשית״)"};
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
     headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
     body:JSON.stringify({model,max_tokens:max,messages:[{role:"user",content:text}]})});
@@ -141,8 +157,7 @@ $("go").onclick=async()=>{
   try{
     const g=parseJSON(await callClaude(prompt(req,$("lvl").value,$("lang").value)));
     if(!g||!Array.isArray(g.steps)||!g.steps.length) throw {message:"התשובה לא הגיעה במבנה הנכון"};
-    guide=g;cur=0;done=new Set();render();
-    $("formCard").classList.add("hide");$("out").classList.remove("hide");$("status").innerHTML="";
+    openGuide(g);$("status").innerHTML="";
     try{localStorage.setItem("sw_last",JSON.stringify(g))}catch(e){}
   }catch(e){
     $("status").innerHTML='<span class="err">'+(e&&e.code==="rate_limited"?"יותר מדי בקשות, נסה שוב בעוד דקה.":e&&e.code==="bad_key"?"מפתח ה-API לא תקין.":"משהו השתבש: "+esc(e&&e.message||e))+'</span>';
@@ -194,7 +209,24 @@ function showFinal(){
   $("final").classList.remove("hide");$("final").scrollIntoView({behavior:"smooth"});
 }
 
-$("newBtn").onclick=()=>{$("out").classList.add("hide");$("final").classList.add("hide");$("formCard").classList.remove("hide");$("req").value="";window.scrollTo({top:0})};
+function openGuide(g){
+  guide=g;cur=0;done=new Set();render();
+  $("home").classList.add("hide");$("final").classList.add("hide");$("out").classList.remove("hide");
+  window.scrollTo({top:0});
+}
+$("newBtn").textContent="→ חזרה לספרייה";
+$("newBtn").onclick=()=>{$("out").classList.add("hide");$("final").classList.add("hide");$("home").classList.remove("hide");window.scrollTo({top:0})};
+
+const CATS=[["hvac","מיזוג ואוורור"],["basic","חלקים בסיסיים"]];
+(function renderLib(){
+  const L=typeof LIBRARY!=="undefined"?LIBRARY:[];
+  $("lib").innerHTML=CATS.map(([c,name])=>{
+    const items=L.filter(g=>g.cat===c); if(!items.length) return "";
+    return `<div class="libh">${name}</div><div class="grid">`+items.map(g=>
+      `<button class="gcard" data-id="${g.id}"><span class="ic">${g.icon||"📘"}</span><span><b>${esc(g.title)}</b><small>${g.steps.length} שלבים</small></span></button>`).join("")+`</div>`;
+  }).join("");
+  $("lib").querySelectorAll(".gcard").forEach(b=>b.onclick=()=>openGuide(L.find(g=>g.id===b.dataset.id)));
+})();
 </script>
 </body>
 </html>
